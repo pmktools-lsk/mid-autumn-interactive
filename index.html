@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>看故事學英語｜互動版（單檔部署）</title>
+<title>看故事學英語｜互動版</title>
 <meta name="description" content="逐句跳播、雙語字幕、單字提示、小測驗。">
 <style>
   :root{--bg:#0f172a;--panel:#111827;--muted:#9ca3af;--accent:#22d3ee;--accent2:#a78bfa;--danger:#ef4444;}
@@ -14,12 +14,19 @@
   .left header,.right header{padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:10px}
   .left header h1,.right header h2{margin:0;font-size:16px;font-weight:600}
   .player{position:relative;display:flex;flex-direction:column;gap:8px;padding:14px;height:100%;box-sizing:border-box}
-  video{width:100%;max-height:65vh;border-radius:10px;background:#000}
-  .controls{display:flex;flex-wrap:wrap;gap:8px}
-  .btn{background:#1f2937;border:1px solid rgba(255,255,255,.1);padding:8px 10px;border-radius:10px;color:#e5e7eb;cursor:pointer}
-  .btn:hover{border-color:rgba(255,255,255,.25)}
-  .btn[aria-pressed="true"]{outline:2px solid var(--accent)}
-  .speed{margin-left:auto;display:flex;align-items:center;gap:6px}
+
+  /* ===== 影片容器（新增） ===== */
+  .vw{position:relative;width:100%;background:#000;border-radius:10px;overflow:hidden;}
+  /* 預設：適應畫面（等比、不裁切） */
+  .vw video{display:block;width:100%;height:auto;max-height:65vh;object-fit:contain;}
+  /* 左欄放大（若你有使用 wide-left）時，高度可略放寬 */
+  body.wide-left .vw video{max-height:78vh;}
+  /* 填滿模式：cover 塞滿容器（會裁切） */
+  .vw.fill{height:65vh;}
+  .vw.fill video{width:100%;height:100%;max-height:none;object-fit:cover;}
+  /* 變焦：以 CSS 變數控制 scale */
+  .vw.zoom video{transform:scale(var(--zoom,1));transform-origin:center center;}
+
   .bar{height:4px;background:#111a36;border-radius:999px;overflow:hidden}
   .bar > span{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2))}
   .banner{display:none;margin:-4px 14px 8px;padding:10px 12px;border:1px solid rgba(239,68,68,.4);background:rgba(239,68,68,.12);color:#fecaca;border-radius:10px}
@@ -41,6 +48,12 @@
   .zhline{opacity:.85}
   .compact .row{padding:6px 10px}
   .compact .enline{line-height:1.1}
+
+  .controls{display:flex;flex-wrap:wrap;gap:8px}
+  .btn{background:#1f2937;border:1px solid rgba(255,255,255,.1);padding:8px 10px;border-radius:10px;color:#e5e7eb;cursor:pointer}
+  .btn:hover{border-color:rgba(255,255,255,.25)}
+  .btn[aria-pressed="true"]{outline:2px solid var(--accent)}
+  .speed{margin-left:auto;display:flex;align-items:center;gap:6px}
 </style>
 </head>
 <body>
@@ -53,8 +66,13 @@
       </header>
       <div id="errorBanner" class="banner"></div>
       <div class="player">
-        <video id="vid" controls crossorigin="anonymous"></video>
+        <!-- ▶▶ 新增：影片容器 .vw 包住 video，支援填滿/變焦 ◀◀ -->
+        <div id="vw" class="vw">
+          <video id="vid" controls crossorigin="anonymous"></video>
+        </div>
+
         <div class="bar"><span id="prog"></span></div>
+
         <div class="controls">
           <button class="btn" id="prev">⏮ 上一句</button>
           <button class="btn" id="toggle">▶︎/⏸ 播放</button>
@@ -64,6 +82,14 @@
           <button class="btn" id="wholeLoop" aria-pressed="false">🔂 整段循環</button>
           <button class="btn" id="abOnClick" aria-pressed="true">🅰️🅱️ 點句即循環</button>
           <button class="btn" id="clearLoop">⏹ 取消循環</button>
+
+          <!-- ▶▶ 新增：填滿畫面按鈕 + 變焦滑桿（填滿時顯示） ◀◀ -->
+          <button class="btn" id="fillToggle">🖼️ 填滿畫面</button>
+          <label class="speed hidden" id="zoomBox">
+            變焦
+            <input type="range" id="zoom" min="1" max="1.8" step="0.05" value="1" />
+          </label>
+
           <label class="speed">速度
             <input type="range" min="0.5" max="1.25" step="0.05" value="1" id="rate" />
             <span id="rateVal">1.00×</span>
@@ -106,7 +132,7 @@
 
 <script>
 (function(){
-  // ====== 1) 內建字幕稿（完整 22 句） ======
+  // ====== 內建字幕稿（完整敘事） ======
   const CUES = [
     {start:0.0,end:4.5,en:"The Mid-Autumn Festival falls on the fifteenth day of the eighth month in the Chinese lunar calendar.",zh:"中秋節在農曆八月十五這一天。",vocab:[{w:"lunar calendar",m:"農曆"}]},
     {start:4.8,end:9.3,en:"It is a time to admire the big, round moon.",zh:"這是抬頭賞圓月的時刻。",vocab:[{w:"admire",m:"欣賞"},{w:"moon",m:"月亮"}]},
@@ -131,7 +157,7 @@
     {start:96.0,end:100.5,en:"The festival is a time for families to be together and share happiness.",zh:"這是一個闔家團圓、共享歡樂的節日。"}
   ].sort((a,b)=>a.start-b.start);
 
-  // ====== 2) 小測驗題庫 ======
+  // 小測驗（保留）
   const QUIZ = [
     {type:"mcq",q:"What day does the Mid-Autumn Festival fall on in the lunar calendar?",choices:["The 15th day of the 8th month","The 1st day of the 1st month","The last day of the year","The 10th day of the 10th month"],a:0,ex:"It falls on the 15th day of the 8th lunar month."},
     {type:"mcq",q:"Who shot down nine suns?",choices:["Chang’e","Hou Yi","Peng Meng","The Queen Mother of the West"],a:1,ex:"Hou Yi climbed a mountain and shot down nine suns."},
@@ -141,8 +167,9 @@
     {type:"tf",q:"True or False: The elixir could grant immortality.",a:true,ex:"True—The elixir granted immortality."}
   ];
 
-  // ====== 3) 播放器 & 互動 ======
+  // DOM
   const vid = document.getElementById('vid');
+  const vw = document.getElementById('vw');
   const prog = document.getElementById('prog');
   const fileVideo = document.getElementById('fileVideo');
   const banner = document.getElementById('errorBanner');
@@ -171,6 +198,11 @@
   const quizMsg = document.getElementById('quizMsg');
   const mainRight = document.getElementById('mainRight');
 
+  // ▶▶ 新增：填滿/變焦控制
+  const fillToggle = document.getElementById('fillToggle');
+  const zoomBox = document.getElementById('zoomBox');
+  const zoom = document.getElementById('zoom');
+
   let active=-1, autoPause=false, looping=false, wholeLoop=false, abOnClickEnabled=true, abIndex=-1;
   let compact=false, qIndex=0;
 
@@ -179,7 +211,7 @@
     banner.innerHTML='🚩 <b>未自動載入影片</b><br>請把影片放在此頁面同層，檔名 <code>story.mov</code> 或 <code>story.mp4</code>。<br>或按<b>「選擇檔案」</b> → 從你的電腦挑選影片。';
   }
 
-  // 先嘗試自動載入 story.mov / story.mp4（含大小寫）
+  // 自動載入 story.mov / story.mp4
   const candidates=["story.mov","story.MOV","Story.mov","STORY.MOV","story.mp4","story.MP4","Story.mp4","STORY.MP4"];
   let tried=0;
   (function tryNext(){
@@ -313,6 +345,20 @@
     quizMsg.textContent = correct ? '✔️ 正確！ ' + (q.ex||'') : '✖ 再想想～ ' + (q.ex?('提示：'+q.ex):'');
   };
   document.getElementById('quizNext').onclick=()=>{ qIndex=(qIndex+1)%QUIZ.length; renderQuiz(); };
+
+  // ▶▶ 新增：填滿 / 變焦邏輯（預設適應畫面）
+  fillToggle.addEventListener('click', ()=>{
+    vw.classList.toggle('fill');                 // 切換填滿模式
+    const on = vw.classList.contains('fill');
+    fillToggle.textContent = on ? '↩️ 適應畫面' : '🖼️ 填滿畫面';
+    zoomBox.classList.toggle('hidden', !on);     // 填滿時顯示變焦
+    vw.classList.toggle('zoom', on);             // 啟用 zoom 類別
+    if(!on){                                     // 還原時重置縮放
+      vw.style.removeProperty('--zoom');
+      zoom.value=1;
+    }
+  });
+  zoom.addEventListener('input', ()=>{ vw.style.setProperty('--zoom', zoom.value); });
 
 })();
 </script>
