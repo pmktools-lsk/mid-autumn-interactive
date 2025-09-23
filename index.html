@@ -15,12 +15,16 @@
   .left header h1,.right header h2{margin:0;font-size:16px;font-weight:600}
   .player{position:relative;display:flex;flex-direction:column;gap:8px;padding:14px;height:100%;box-sizing:border-box}
 
-  /* ===== 影片容器 ===== */
+  /* ===== 影片容器（新增） ===== */
   .vw{position:relative;width:100%;background:#000;border-radius:10px;overflow:hidden;}
+  /* 預設：適應畫面（等比、不裁切） */
   .vw video{display:block;width:100%;height:auto;max-height:65vh;object-fit:contain;}
+  /* 左欄放大（若你有使用 wide-left）時，高度可略放寬 */
   body.wide-left .vw video{max-height:78vh;}
+  /* 填滿模式：cover 塞滿容器（會裁切） */
   .vw.fill{height:65vh;}
   .vw.fill video{width:100%;height:100%;max-height:none;object-fit:cover;}
+  /* 變焦：以 CSS 變數控制 scale */
   .vw.zoom video{transform:scale(var(--zoom,1));transform-origin:center center;}
 
   .bar{height:4px;background:#111a36;border-radius:999px;overflow:hidden}
@@ -50,11 +54,6 @@
   .btn:hover{border-color:rgba(255,255,255,.25)}
   .btn[aria-pressed="true"]{outline:2px solid var(--accent)}
   .speed{margin-left:auto;display:flex;align-items:center;gap:6px}
-
-  /* YouTube 區塊 */
-  .ytlink{margin-top:8px;text-align:center}
-  .ytlink a{background:#ff0000;color:#fff;padding:8px 14px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block}
-  .ytlink a:hover{background:#cc0000}
 </style>
 </head>
 <body>
@@ -67,6 +66,7 @@
       </header>
       <div id="errorBanner" class="banner"></div>
       <div class="player">
+        <!-- ▶▶ 新增：影片容器 .vw 包住 video，支援填滿/變焦 ◀◀ -->
         <div id="vw" class="vw">
           <video id="vid" controls crossorigin="anonymous"></video>
         </div>
@@ -82,20 +82,18 @@
           <button class="btn" id="wholeLoop" aria-pressed="false">🔂 整段循環</button>
           <button class="btn" id="abOnClick" aria-pressed="true">🅰️🅱️ 點句即循環</button>
           <button class="btn" id="clearLoop">⏹ 取消循環</button>
+
+          <!-- ▶▶ 新增：填滿畫面按鈕 + 變焦滑桿（填滿時顯示） ◀◀ -->
           <button class="btn" id="fillToggle">🖼️ 填滿畫面</button>
-          <label class="speed hidden" id="zoomBox">變焦
+          <label class="speed hidden" id="zoomBox">
+            變焦
             <input type="range" id="zoom" min="1" max="1.8" step="0.05" value="1" />
           </label>
+
           <label class="speed">速度
             <input type="range" min="0.5" max="1.25" step="0.05" value="1" id="rate" />
             <span id="rateVal">1.00×</span>
           </label>
-        </div>
-
-        <!-- YouTube 連結 -->
-        <div class="ytlink">
-          <p>到以下平台觀看：</p>
-          <a href="https://youtube.com/shorts/rz78e3Zhf1s" target="_blank">YouTube</a>
         </div>
       </div>
     </section>
@@ -115,6 +113,7 @@
           <div class="zh" id="nowZh">—</div>
           <div id="nowVocab"></div>
         </div>
+
         <div id="quizBox" class="hidden">
           <div id="quizQ"></div>
           <div id="quizChoices" style="margin:8px 0;"></div>
@@ -125,16 +124,249 @@
             <span id="quizMsg" class="muted"></span>
           </div>
         </div>
+
         <div id="list" class="list"></div>
       </main>
     </section>
   </div>
 
 <script>
-/* 原本的 JS 保留不變 */
+(function(){
+  // ====== 內建字幕稿（完整敘事） ======
+  const CUES = [
+    {start:0.0,end:4.5,en:"The Mid-Autumn Festival falls on the fifteenth day of the eighth month in the Chinese lunar calendar.",zh:"中秋節在農曆八月十五這一天。",vocab:[{w:"lunar calendar",m:"農曆"}]},
+    {start:4.8,end:9.3,en:"It is a time to admire the big, round moon.",zh:"這是抬頭賞圓月的時刻。",vocab:[{w:"admire",m:"欣賞"},{w:"moon",m:"月亮"}]},
+    {start:9.6,end:14.1,en:"This has been a special day in China for a very long time.",zh:"在中國，這是一個流傳已久的特別節日。"},
+    {start:14.4,end:18.9,en:"Long ago, there were ten suns in the sky.",zh:"很久以前，天空中曾經同時出現十個太陽。"},
+    {start:19.2,end:23.7,en:"It was unbearably hot, and people suffered.",zh:"天氣炎熱難耐，人們備受煎熬。"},
+    {start:24.0,end:28.5,en:"A brave archer named Hou Yi helped them.",zh:"一位勇敢的神射手后羿出手相救。",vocab:[{w:"archer",m:"弓箭手"}]},
+    {start:28.8,end:33.3,en:"He climbed a tall mountain and shot down nine suns with his strong bow.",zh:"他登上高山，拉開強弓，射下了九個太陽。",vocab:[{w:"bow",m:"弓"}]},
+    {start:33.6,end:38.1,en:"Everyone loved Hou Yi for saving them.",zh:"人們感激后羿的拯救。"},
+    {start:38.4,end:42.9,en:"Hou Yi had a kind and beautiful wife named Chang’e, and they were very happy.",zh:"后羿的妻子名叫嫦娥，善良美麗，夫妻倆幸福美滿。"},
+    {start:43.2,end:47.7,en:"One day, Hou Yi met the Queen Mother of the West, who gave him a special elixir.",zh:"有一天，后羿遇見西王母，對方贈予他一顆仙丹。",vocab:[{w:"elixir",m:"仙丹"}]},
+    {start:48.0,end:52.5,en:"This elixir could grant immortality.",zh:"這顆仙丹能使人長生不死。",vocab:[{w:"immortality",m:"長生不死"}]},
+    {start:52.8,end:57.3,en:"Because Hou Yi loved his wife, he did not take it and gave it to Chang’e to keep safe.",zh:"后羿因為愛妻便沒有服下，把仙丹交給嫦娥保管。"},
+    {start:57.6,end:62.1,en:"A wicked man named Peng Meng learned about the elixir and wanted it for himself.",zh:"壞人逢蒙得知此事，企圖奪取仙丹。"},
+    {start:62.4,end:66.9,en:"When Hou Yi was away, Peng Meng came to their home and threatened Chang’e.",zh:"趁后羿外出時，逢蒙闖入家中威逼嫦娥。"},
+    {start:67.2,end:71.7,en:"Knowing she could not fight him, Chang’e quickly swallowed the elixir.",zh:"嫦娥自知無力抵抗，情急之下吞下仙丹。"},
+    {start:72.0,end:76.5,en:"At once, she felt light and floated up into the sky until she reached the moon.",zh:"她立刻覺得身體變得輕盈，冉冉升空，最後來到月宮。"},
+    {start:76.8,end:81.3,en:"When Hou Yi learned what had happened, he was heartbroken.",zh:"后羿得知此事後，悲痛不已。"},
+    {start:81.6,end:86.1,en:"He set out Chang’e’s favorite foods to share with her from afar.",zh:"他擺上嫦娥愛吃的食物，遙祭相思。"},
+    {start:86.4,end:90.9,en:"The villagers also offered food and prayed to Chang’e for blessings.",zh:"村民們也供上佳餚，向嫦娥祈求庇佑。",vocab:[{w:"pray",m:"祈禱"},{w:"blessings",m:"庇佑"}]},
+    {start:91.2,end:95.7,en:"Today, people celebrate the Mid-Autumn Festival by moon-gazing and eating mooncakes.",zh:"如今，人們以賞月、吃月餅來慶祝中秋。",vocab:[{w:"mooncake",m:"月餅"}]},
+    {start:96.0,end:100.5,en:"The festival is a time for families to be together and share happiness.",zh:"這是一個闔家團圓、共享歡樂的節日。"}
+  ].sort((a,b)=>a.start-b.start);
+
+  // 小測驗（保留）
+  const QUIZ = [
+    {type:"mcq",q:"What day does the Mid-Autumn Festival fall on in the lunar calendar?",choices:["The 15th day of the 8th month","The 1st day of the 1st month","The last day of the year","The 10th day of the 10th month"],a:0,ex:"It falls on the 15th day of the 8th lunar month."},
+    {type:"mcq",q:"Who shot down nine suns?",choices:["Chang’e","Hou Yi","Peng Meng","The Queen Mother of the West"],a:1,ex:"Hou Yi climbed a mountain and shot down nine suns."},
+    {type:"mcq",q:"What did the Queen Mother of the West give to Hou Yi?",choices:["A golden bow","An elixir","A mooncake","A shield"],a:1,ex:"She gave him a special elixir that could grant immortality."},
+    {type:"mcq",q:"Why did Chang’e swallow the elixir?",choices:["She was hungry","She wanted to be a goddess","She could not fight Peng Meng","She lost it"],a:2,ex:"She swallowed it because she could not fight Peng Meng."},
+    {type:"cloze",q:"People celebrate by moon-gazing and eating ________.",a:"mooncakes",ex:"They celebrate by moon-gazing and eating mooncakes."},
+    {type:"tf",q:"True or False: The elixir could grant immortality.",a:true,ex:"True—The elixir granted immortality."}
+  ];
+
+  // DOM
+  const vid = document.getElementById('vid');
+  const vw = document.getElementById('vw');
+  const prog = document.getElementById('prog');
+  const fileVideo = document.getElementById('fileVideo');
+  const banner = document.getElementById('errorBanner');
+  const prevBtn = document.getElementById('prev');
+  const nextBtn = document.getElementById('next');
+  const toggleBtn = document.getElementById('toggle');
+  const replayBtn = document.getElementById('replay');
+  const autoPauseBtn = document.getElementById('autoPause');
+  const rate = document.getElementById('rate');
+  const rateVal = document.getElementById('rateVal');
+  const wholeLoopBtn = document.getElementById('wholeLoop');
+  const abOnClickBtn = document.getElementById('abOnClick');
+  const clearLoopBtn = document.getElementById('clearLoop');
+  const tabSub = document.getElementById('tabSub');
+  const tabQuiz = document.getElementById('tabQuiz');
+  const toggleCompact = document.getElementById('toggleCompact');
+  const list = document.getElementById('list');
+  const nowEn = document.getElementById('nowEn');
+  const nowZh = document.getElementById('nowZh');
+  const nowVocab = document.getElementById('nowVocab');
+  const nowBox = document.getElementById('now');
+  const quizBox = document.getElementById('quizBox');
+  const quizQ = document.getElementById('quizQ');
+  const quizChoices = document.getElementById('quizChoices');
+  const quizInput = document.getElementById('quizInput');
+  const quizMsg = document.getElementById('quizMsg');
+  const mainRight = document.getElementById('mainRight');
+
+  // ▶▶ 新增：填滿/變焦控制
+  const fillToggle = document.getElementById('fillToggle');
+  const zoomBox = document.getElementById('zoomBox');
+  const zoom = document.getElementById('zoom');
+
+  let active=-1, autoPause=false, looping=false, wholeLoop=false, abOnClickEnabled=true, abIndex=-1;
+  let compact=false, qIndex=0;
+
+  function showBanner(){
+    banner.style.display='block';
+    banner.innerHTML='🚩 <b>未自動載入影片</b><br>請把影片放在此頁面同層，檔名 <code>story.mov</code> 或 <code>story.mp4</code>。<br>或按<b>「選擇檔案」</b> → 從你的電腦挑選影片。';
+  }
+
+  // 自動載入 story.mov / story.mp4
+  const candidates=["story.mov","story.MOV","Story.mov","STORY.MOV","story.mp4","story.MP4","Story.mp4","STORY.MP4"];
+  let tried=0;
+  (function tryNext(){
+    if(tried>=candidates.length){ showBanner(); return; }
+    const src=candidates[tried++]; vid.src=src;
+    const ok=()=>{ banner.style.display='none'; cleanup(); };
+    const bad=()=>{ cleanup(); tryNext(); };
+    const cleanup=()=>{ vid.removeEventListener('loadedmetadata', ok); vid.removeEventListener('error', bad); };
+    vid.addEventListener('loadedmetadata', ok, {once:true});
+    vid.addEventListener('error', bad, {once:true});
+  })();
+
+  // 手動選檔
+  fileVideo.addEventListener('change', e=>{
+    const f=e.target.files?.[0]; if(!f) return;
+    banner.style.display='none';
+    vid.src=URL.createObjectURL(f); vid.load();
+  });
+
+  function toTime(t){ const m=String(Math.floor(t/60)).padStart(2,'0'); const s=String(Math.floor(t%60)).padStart(2,'0'); return m+':'+s; }
+
+  // 渲染字幕列表
+  function renderList(){
+    list.innerHTML = CUES.map((c,i)=>`
+      <div class="row" data-i="${i}">
+        <div class="idx">${i+1}</div>
+        <div class="time">${toTime(c.start)}</div>
+        <div>
+          <div class="enline">${c.en}</div>
+          <div class="zhline">${c.zh}</div>
+        </div>
+      </div>`).join('');
+    list.querySelectorAll('.row').forEach(el=>{
+      el.addEventListener('click',()=>{
+        const i=+el.dataset.i; goCue(i,true);
+        if(abOnClickEnabled){ abIndex=i; looping=true; replayBtn.setAttribute('aria-pressed','true');}
+      });
+    });
+  }
+  renderList();
+
+  // 即時區塊
+  function updateNow(i){
+    const c=CUES[i]; if(!c) return;
+    nowEn.textContent=c.en; nowZh.textContent=c.zh;
+    nowVocab.innerHTML=(c.vocab||[]).map(v=>`<span class="chip"><b>${v.w}</b> — ${v.m}</span>`).join('');
+  }
+
+  function goCue(i, play=false){
+    i=Math.max(0,Math.min(CUES.length-1,i));
+    active=i; updateNow(i);
+    vid.currentTime=CUES[i].start+0.02; if(play) vid.play();
+  }
+
+  function setActiveRow(i){
+    const prev = list.querySelector('.row.active'); if(prev) prev.classList.remove('active');
+    const now = list.querySelector(`.row[data-i="${i}"]`);
+    if(now){ now.classList.add('active'); now.scrollIntoView({block:'center', behavior:'smooth'}); }
+  }
+
+  vid.addEventListener('timeupdate',()=>{
+    const t=vid.currentTime;
+    const i=CUES.findIndex(c=>t>=c.start&&t<c.end);
+    if(i!==-1 && i!==active){ active=i; updateNow(i); setActiveRow(i); }
+    if(vid.duration) prog.style.width=`${(t/vid.duration)*100}%`;
+    if(autoPause&&active!==-1&&t>=CUES[active].end) vid.pause();
+    if(looping&&active!==-1&&t>=CUES[active].end){
+      const idx=(abIndex>=0?abIndex:active); vid.currentTime=CUES[idx].start+0.02;
+    }
+    const lastEnd=CUES[CUES.length-1].end;
+    if(wholeLoop&&t>=lastEnd){ active=0; updateNow(0); setActiveRow(0); vid.currentTime=CUES[0].start+0.02; if(vid.paused) vid.play(); }
+  });
+
+  // 控制列
+  prevBtn.onclick=()=>goCue((active===-1?0:active-1),true);
+  nextBtn.onclick=()=>goCue((active===-1?0:active+1),true);
+  replayBtn.onclick=()=>{ if(active===-1)return; looping=!looping; abIndex=(looping?active:-1); replayBtn.setAttribute('aria-pressed',String(looping)); };
+  autoPauseBtn.onclick=()=>{ autoPause=!autoPause; autoPauseBtn.setAttribute('aria-pressed',String(autoPause)); };
+  toggleBtn.onclick=()=> vid.paused?vid.play():vid.pause();
+  rate.oninput=()=>{ vid.playbackRate=+rate.value; rateVal.textContent=`${(+rate.value).toFixed(2)}×`; };
+  wholeLoopBtn.onclick=()=>{ wholeLoop=!wholeLoop; wholeLoopBtn.setAttribute('aria-pressed',String(wholeLoop)); };
+  abOnClickBtn.onclick=()=>{ abOnClickEnabled=!abOnClickEnabled; abOnClickBtn.setAttribute('aria-pressed',String(abOnClickEnabled)); };
+  clearLoopBtn.onclick=()=>{ looping=false; abIndex=-1; replayBtn.setAttribute('aria-pressed','false'); };
+
+  // 分頁
+  tabSub.onclick=()=>{ tabSub.setAttribute('aria-pressed','true'); tabQuiz.setAttribute('aria-pressed','false'); list.classList.remove('hidden'); quizBox.classList.add('hidden'); nowBox.classList.remove('hidden'); };
+  tabQuiz.onclick=()=>{ tabSub.setAttribute('aria-pressed','false'); tabQuiz.setAttribute('aria-pressed','true'); list.classList.add('hidden'); quizBox.classList.remove('hidden'); nowBox.classList.add('hidden'); renderQuiz(); };
+
+  // 緊湊模式
+  toggleCompact.onclick=()=>{ 
+    compact=!compact; toggleCompact.setAttribute('aria-pressed', String(compact));
+    mainRight.classList.toggle('compact', compact);
+  };
+
+  // 小測驗
+  function renderQuiz(){
+    const q=QUIZ[qIndex]; quizMsg.textContent='';
+    quizChoices.innerHTML=''; quizInput.classList.add('hidden');
+    if(q.type==='mcq'){
+      quizQ.textContent = `Q${qIndex+1}. ${q.q}`;
+      q.choices.forEach((c,idx)=>{
+        const b=document.createElement('button'); b.className='btn'; b.textContent=c; b.dataset.idx=idx;
+        b.onclick=()=>{ [...quizChoices.children].forEach(x=>x.classList.remove('sel')); b.classList.add('sel'); b.dataset.sel='1'; };
+        quizChoices.appendChild(b);
+      });
+    } else if(q.type==='cloze'){
+      quizQ.textContent = `Q${qIndex+1}. ${q.q}`;
+      quizInput.classList.remove('hidden'); quizInput.value=''; quizInput.focus();
+    } else if(q.type==='tf'){
+      quizQ.textContent = `Q${qIndex+1}. ${q.q}`;
+      ['True','False'].forEach((label,idx)=>{
+        const b=document.createElement('button'); b.className='btn'; b.textContent=label; b.dataset.val=String(idx===0);
+        b.onclick=()=>{ [...quizChoices.children].forEach(x=>x.classList.remove('sel')); b.classList.add('sel'); };
+        quizChoices.appendChild(b);
+      });
+    }
+  }
+  document.getElementById('quizCheck').onclick=()=>{
+    const q=QUIZ[qIndex];
+    let correct=false;
+    if(q.type==='mcq'){
+      const picked=[...quizChoices.children].find(x=>x.classList.contains('sel'));
+      if(picked){ correct = Number(picked.dataset.idx)===q.a; }
+    } else if(q.type==='cloze'){
+      const val=(document.getElementById('quizInput').value||'').trim().toLowerCase();
+      correct = val===String(q.a).toLowerCase();
+    } else if(q.type==='tf'){
+      const picked=[...quizChoices.children].find(x=>x.classList.contains('sel'));
+      if(picked){ correct = (picked.dataset.val === String(q.a)); }
+    }
+    quizMsg.textContent = correct ? '✔️ 正確！ ' + (q.ex||'') : '✖ 再想想～ ' + (q.ex?('提示：'+q.ex):'');
+  };
+  document.getElementById('quizNext').onclick=()=>{ qIndex=(qIndex+1)%QUIZ.length; renderQuiz(); };
+
+  // ▶▶ 新增：填滿 / 變焦邏輯（預設適應畫面）
+  fillToggle.addEventListener('click', ()=>{
+    vw.classList.toggle('fill');                 // 切換填滿模式
+    const on = vw.classList.contains('fill');
+    fillToggle.textContent = on ? '↩️ 適應畫面' : '🖼️ 填滿畫面';
+    zoomBox.classList.toggle('hidden', !on);     // 填滿時顯示變焦
+    vw.classList.toggle('zoom', on);             // 啟用 zoom 類別
+    if(!on){                                     // 還原時重置縮放
+      vw.style.removeProperty('--zoom');
+      zoom.value=1;
+    }
+  });
+  zoom.addEventListener('input', ()=>{ vw.style.setProperty('--zoom', zoom.value); });
+
+})();
 </script>
 </body>
 </html>
+
+
+
 
 
 
