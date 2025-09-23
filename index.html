@@ -1,150 +1,216 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh">
 <head>
-<meta charset="UTF-8">
-<title>互動中秋影片</title>
-<style>
-  body{
-    margin:0;
-    font-family:Arial, sans-serif;
-    background:#111827;
-    color:#fff;
-    display:flex;
-    height:100vh;
-    overflow:hidden;
-  }
-  #left{
-    flex:2;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    justify-content:center;
-    background:#000;
-  }
-  #right{
-    flex:1;
-    overflow-y:auto;
-    padding:10px;
-    background:#1e293b;
-  }
-  video{
-    max-width:100%;
-    max-height:62vh;
-    background:#000;
-  }
-  #controls{
-    display:flex;
-    flex-wrap:wrap;
-    gap:8px;
-    justify-content:center;
-    padding:10px;
-  }
-  button{
-    padding:6px 12px;
-    border:none;
-    border-radius:6px;
-    background:#374151;
-    color:#fff;
-    cursor:pointer;
-  }
-  button:hover{ background:#4b5563; }
-  .yt{
-    background:red;
-    font-weight:bold;
-  }
-
-  /* ============ 填滿模式 / 縮放修正 ============ */
-  .vw.fill video{
-    width:100%;
-    height:100%;
-    max-height:none;
-    object-fit:cover;
-    object-position:50% 58%; /* 往上移一點，避免字幕壓到底 */
-  }
-  .vw.zoom video{
-    transform:translateY(-1.5%) scale(var(--zoom,1));
-    transform-origin:center;
-  }
-  #zoomBox{ display:flex;align-items:center;gap:6px;margin-top:6px; }
-  #zoomBox.hidden{ display:none; }
-</style>
+  <meta charset="UTF-8">
+  <title>互動影片學習</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: white;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+    #left {
+      flex: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: black;
+    }
+    video {
+      max-width: 100%;
+      max-height: 80vh;
+      background: black;
+    }
+    #controls {
+      margin-top: 8px;
+    }
+    #controls button {
+      margin: 2px;
+      padding: 6px 10px;
+    }
+    #right {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: #1e293b;
+      overflow: hidden;
+    }
+    #tabs {
+      display: flex;
+    }
+    #tabs button {
+      flex: 1;
+      padding: 8px;
+      border: none;
+      cursor: pointer;
+      background: #334155;
+      color: white;
+    }
+    #tabs button.active {
+      background: #3b82f6;
+    }
+    .panel {
+      flex: 1;
+      overflow: auto;
+      padding: 10px;
+      display: none;
+    }
+    .panel.active {
+      display: block;
+    }
+    .row {
+      padding: 6px;
+      border-bottom: 1px solid #334155;
+    }
+    .row.active {
+      background: #475569;
+    }
+    #youtubeLink {
+      margin-top: 10px;
+      text-align: center;
+    }
+    #youtubeLink a {
+      display: inline-block;
+      background: red;
+      color: white;
+      padding: 6px 12px;
+      border-radius: 4px;
+      text-decoration: none;
+      font-weight: bold;
+    }
+  </style>
 </head>
 <body>
   <div id="left">
-    <div id="vw" class="vw">
-      <video id="vid" controls>
-        <source src="story.mov" type="video/mp4">
-        <source src="story.mov" type="video/quicktime">
-        您的瀏覽器不支援影片播放，請改用 Chrome。
-      </video>
-    </div>
-
+    <video id="video" controls>
+      <source src="story.mov" type="video/mp4">
+      Your browser does not support the video tag.
+    </video>
     <div id="controls">
-      <button id="prev">⏮ 上一句</button>
-      <button id="play">▶️ 播放 / 暫停</button>
-      <button id="next">⏭ 下一句</button>
-      <button id="repeat">🔁 重複本句</button>
-      <button id="autoPause">⏸ 逐句自動暫停</button>
-      <button id="loop">🔂 整段循環</button>
-      <button id="abLoop">🔁 點句即循環</button>
-      <button id="cancelLoop">❌ 取消循環</button>
-      <button id="fillToggle">🖼️ 填滿畫面</button>
-      <a href="https://youtube.com/shorts/rz78e3Zhf1s" target="_blank">
-        <button class="yt">📺 YouTube</button>
-      </a>
+      <button onclick="prevLine()">⏮ 上一句</button>
+      <button onclick="togglePlay()">▶️/⏸ 播放</button>
+      <button onclick="nextLine()">⏭ 下一句</button>
+      <button onclick="repeatLine()">🔁 重複本句</button>
+      <button onclick="toggleFit()">🖼 適應畫面</button>
+      <button onclick="toggleFill()">🌆 填滿畫面</button>
     </div>
-
-    <div id="zoomBox" class="hidden">
-      <label>變焦</label>
-      <input id="zoom" type="range" min="0.85" max="1.6" step="0.01" value="1">
+    <div id="youtubeLink">
+      到以下平台觀看：
+      <a href="https://youtube.com/shorts/rz78e3Zhf1s" target="_blank">YouTube</a>
     </div>
   </div>
 
   <div id="right">
-    <h3>字幕對照 / 小測驗</h3>
-    <div id="subs"></div>
+    <div id="tabs">
+      <button id="tab1" class="active" onclick="showPanel('subs')">字幕列表</button>
+      <button id="tab2" onclick="showPanel('quiz')">小測驗</button>
+    </div>
+    <div id="subs" class="panel active"></div>
+    <div id="quiz" class="panel">
+      <p>Press "出題" 開始測驗</p>
+      <input type="text" id="answer" placeholder="輸入答案">
+      <button onclick="checkAnswer()">送出</button>
+      <button onclick="newQuestion()">出題</button>
+      <p id="feedback"></p>
+    </div>
   </div>
 
-<script>
-const subs=[
-  {t:0, en:"The Mid-Autumn Festival falls on the fifteenth day of the eighth month in the Chinese lunar calendar.", zh:"中秋節在農曆八月十五這一天。"},
-  {t:4, en:"It is a time to admire the big, round moon.", zh:"這是抬頭賞圓月的時刻。"},
-  {t:9, en:"This has been a special day in China for a very long time.", zh:"在中國，這是一個流傳已久的特別節日。"}
-];
+  <script>
+    const cues = [
+      { t0: 0, t1: 4, en: "The Mid-Autumn Festival falls on the fifteenth day of the eighth month in the Chinese lunar calendar.", zh: "中秋節在農曆八月十五這一天。" },
+      { t0: 4, t1: 9, en: "It is a time to admire the big, round moon.", zh: "這是抬頭賞圓月的時刻。" },
+      { t0: 9, t1: 14, en: "This has been a special day in China for a very long time.", zh: "在中國，這是一個流傳已久的特別節日。" },
+      { t0: 14, t1: 19, en: "Long ago, there were ten suns in the sky.", zh: "很久以前，天空中曾經同時出現十個太陽。" },
+      { t0: 19, t1: 24, en: "It was unbearably hot, and people suffered.", zh: "天氣炎熱難耐，人們備受煎熬。" },
+      { t0: 24, t1: 28, en: "A brave archer named Hou Yi helped them.", zh: "一位勇敢的神射手后羿出手相救。" },
+      { t0: 28, t1: 35, en: "He climbed a tall mountain and shot down nine suns with his strong bow.", zh: "他登上高山，拉開強弓，射下了九個太陽。" }
+    ];
 
-const subsDiv=document.getElementById('subs');
-subs.forEach(s=>{
-  let p=document.createElement('p');
-  p.textContent=`${new Date(s.t*1000).toISOString().substr(14,5)} ${s.en}\n${s.zh}`;
-  subsDiv.appendChild(p);
-});
+    const video = document.getElementById("video");
+    const subs = document.getElementById("subs");
 
-const vid=document.getElementById('vid');
-const vw=document.getElementById('vw');
-const fillBtn=document.getElementById('fillToggle');
-const zoomBox=document.getElementById('zoomBox');
-const zoom=document.getElementById('zoom');
+    cues.forEach((c, i) => {
+      const div = document.createElement("div");
+      div.className = "row";
+      div.innerHTML = `<b>${c.t0.toFixed(2)}-${c.t1.toFixed(2)}</b> ${c.en}<br><small>${c.zh}</small>`;
+      subs.appendChild(div);
+    });
 
-fillBtn.onclick=()=>{
-  vw.classList.toggle('fill');
-  const on=vw.classList.contains('fill');
-  fillBtn.textContent=on ? '↩︎ 適應畫面' : '🖼️ 填滿畫面';
-  zoomBox.classList.toggle('hidden', !on);
-  vw.classList.toggle('zoom', on);
+    let currentIndex = -1;
+    function highlightAndCenter(index){
+      const rows = subs.querySelectorAll('.row');
+      rows.forEach((r,i)=> r.classList.toggle('active', i===index));
+      const row = rows[index];
+      if(!row) return;
+      const top = row.offsetTop;
+      const bottom = top + row.offsetHeight;
+      const viewTop = subs.scrollTop;
+      const viewBottom = viewTop + subs.clientHeight;
+      if (top < viewTop || bottom > viewBottom) {
+        const target = top - (subs.clientHeight - row.offsetHeight)/2;
+        subs.scrollTo({ top: Math.max(0, target), behavior: 'smooth' });
+      }
+    }
 
-  if(on){
-    zoom.min=0.85;
-    zoom.max=1.6;
-    zoom.step=0.01;
-    zoom.value=0.96;                        // 安全縮小，避免切字幕
-    vw.style.setProperty('--zoom',0.96);
-  }else{
-    vw.style.removeProperty('--zoom');
-    zoom.value=1;
-  }
-};
-zoom.oninput=()=>vw.style.setProperty('--zoom',zoom.value);
-</script>
+    video.addEventListener("timeupdate", ()=>{
+      const t = video.currentTime;
+      let idx = cues.findIndex(c => t >= c.t0 && t < c.t1);
+      if(idx<0) idx = cues.length-1;
+      if(idx !== currentIndex){
+        currentIndex = idx;
+        highlightAndCenter(idx);
+      }
+    });
+
+    function togglePlay(){ video.paused ? video.play() : video.pause(); }
+    function prevLine(){ if(currentIndex>0) video.currentTime = cues[currentIndex-1].t0; }
+    function nextLine(){ if(currentIndex<cues.length-1) video.currentTime = cues[currentIndex+1].t0; }
+    function repeatLine(){ if(currentIndex>=0) video.currentTime = cues[currentIndex].t0; }
+
+    // 畫面模式切換
+    let fitMode = "contain"; // 預設適應
+    function toggleFit(){
+      fitMode = "contain";
+      video.style.objectFit = "contain";
+    }
+    function toggleFill(){
+      fitMode = "cover";
+      video.style.objectFit = "cover";
+    }
+    video.style.objectFit = "contain";
+
+    function showPanel(id){
+      document.querySelectorAll(".panel").forEach(p=>p.classList.remove("active"));
+      document.getElementById(id).classList.add("active");
+      document.querySelectorAll("#tabs button").forEach(b=>b.classList.remove("active"));
+      if(id==="subs") document.getElementById("tab1").classList.add("active");
+      else document.getElementById("tab2").classList.add("active");
+    }
+
+    // 簡單英文填空測驗
+    let currentQ = null;
+    function newQuestion(){
+      const c = cues[Math.floor(Math.random()*cues.length)];
+      const words = c.en.split(" ");
+      const idx = Math.floor(Math.random()*words.length);
+      currentQ = {answer: words[idx].replace(/[^a-zA-Z]/g,"")};
+      words[idx] = "____";
+      document.getElementById("feedback").innerText = "題目: " + words.join(" ");
+    }
+    function checkAnswer(){
+      const ans = document.getElementById("answer").value.trim();
+      if(ans.toLowerCase() === currentQ.answer.toLowerCase()){
+        document.getElementById("feedback").innerText = "✅ 正確! 答案是 " + currentQ.answer;
+      }else{
+        document.getElementById("feedback").innerText = "❌ 錯誤，再試一次";
+      }
+    }
+  </script>
 </body>
 </html>
 
