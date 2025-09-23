@@ -1,183 +1,132 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>故事影片互動版</title>
+  <meta charset="UTF-8">
+  <title>Mid-Autumn Interactive</title>
   <style>
-    :root{--bg:#0f172a;--panel:#1e293b;--btn:#334155;--btnH:#475569}
-    *{box-sizing:border-box}
-    body{
-      margin:0;background:var(--bg);color:#fff;font-family:system-ui,-apple-system,
-      Segoe UI,Roboto,"Noto Sans TC",sans-serif;display:flex;height:100vh;gap:0
-    }
-    #left{flex:1.3;padding:12px;display:flex;flex-direction:column}
-    #right{flex:0.9;padding:12px;background:var(--panel);overflow-y:auto}
-
-    /* 影片容器（預設等比，不裁切） */
-    .vw{position:relative;width:100%;background:#000;border-radius:12px;overflow:hidden}
-    .vw video{display:block;width:100%;height:auto;max-height:65vh;object-fit:contain}
-    /* 填滿模式（會裁切） */
-    .vw.fill{height:65vh}
-    .vw.fill video{width:100%;height:100%;max-height:none;object-fit:cover}
-    /* 變焦（僅填滿時生效） */
-    .vw.zoom video{transform:scale(var(--zoom,1));transform-origin:center}
-    .hidden{display:none!important}
-
-    /* 控制列 */
-    .controls{margin-top:10px;display:flex;flex-wrap:wrap;gap:8px}
-    .btn{
-      background:var(--btn);border:none;border-radius:8px;color:#fff;
-      padding:8px 12px;cursor:pointer
-    }
-    .btn:hover{background:var(--btnH)}
-
-    /* YouTube 區塊 */
-    .yt-link{margin:12px 0 0;background:#111827;padding:10px;border-radius:8px}
-    .yt-link a{
-      display:inline-flex;align-items:center;background:#ff0000;color:#fff;
-      text-decoration:none;padding:8px 12px;border-radius:8px;font-weight:700
-    }
-    .yt-link a:hover{background:#cc0000}
-    .yt-link svg{margin-right:6px}
-
-    /* 右側 Tabs */
-    .tabs{display:flex;gap:8px;margin-bottom:12px}
-    .tab-button{
-      flex:1;background:#334155;border:none;color:#fff;padding:10px;border-radius:8px;cursor:pointer
-    }
-    .tab-button.active{background:#2563eb}
-    .tab-content{display:none}
-    .tab-content.active{display:block}
-    .subtitle p{margin:.6rem 0;line-height:1.5}
-    .quiz label{display:block;margin:.3rem 0}
-    .result{margin-top:.6rem;font-weight:700}
+    body { display: flex; background:#0f1b2e; color:white; margin:0; font-family:Arial; }
+    .video-container { flex: 2; padding:10px; }
+    .controls { margin-top:10px; }
+    video { width:100%; max-height:70vh; object-fit:contain; background:black; }
+    .sidebar { flex: 1; padding:10px; overflow-y:auto; height:100vh; }
+    .subtitle { padding:5px; border-bottom:1px solid #333; }
+    .active { background:#223d66; }
+    .quiz-box { margin-top:20px; padding:10px; border:1px solid #666; background:#1b2a3d; }
+    .quiz-box input { padding:5px; }
+    .quiz-box button { padding:5px; margin-left:5px; }
   </style>
 </head>
 <body>
-  <!-- 左側：影片區 -->
-  <div id="left">
-    <div id="vw" class="vw">
-      <video id="video" controls>
-        <source src="story.mov" type="video/mp4" />
-        您的瀏覽器不支援影片播放。
-      </video>
-    </div>
-
-    <!-- 控制列 -->
+  <div class="video-container">
+    <h3>故事影片</h3>
+    <video id="video" controls>
+      <source src="story.mov" type="video/mp4">
+      Your browser does not support video.
+    </video>
     <div class="controls">
-      <button id="prev" class="btn">⏮️ 上一句</button>
-      <button id="play" class="btn">▶️ 播放 / 暫停</button>
-      <button id="next" class="btn">⏭️ 下一句</button>
-      <button id="repeat" class="btn">🔁 重複本句</button>
-
-      <button id="fillToggle" class="btn">🖼️ 填滿畫面</button>
-      <label id="zoomBox" class="hidden" style="display:inline-flex;align-items:center;gap:6px">
-        變焦 <input type="range" id="zoom" min="1" max="1.8" step="0.05" value="1" />
-      </label>
-    </div>
-
-    <!-- YouTube 按鈕（已放你提供的連結） -->
-    <div class="yt-link">
-      到以下平台觀看：
-      <a href="https://youtube.com/shorts/rz78e3Zhf1s?feature=share" target="_blank" rel="noopener">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"
-             viewBox="0 0 24 24" fill="white">
-          <path d="M23.498 6.186a2.971 2.971 0 00-2.09-2.103C19.397 3.5 12 3.5 12 3.5s-7.397 0-9.408.583a2.971 2.971 0 00-2.09 2.103A30.18 30.18 0 000 12a30.18 30.18 0 00.502 5.814 2.971 2.971 0 002.09 2.103C4.603 20.5 12 20.5 12 20.5s7.397 0 9.408-.583a2.971 2.971 0 002.09-2.103A30.18 30.18 0 0024 12a30.18 30.18 0 00-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
-        </svg>
-        YouTube
-      </a>
+      <button onclick="prevLine()">⏮ 上一句</button>
+      <button onclick="togglePlay()">▶️ 播放 / 暫停</button>
+      <button onclick="nextLine()">⏭ 下一句</button>
+      <button onclick="repeatLine()">🔁 重複本句</button>
+      <button onclick="fitScreen()">🖼️ 適應畫面</button>
     </div>
   </div>
 
-  <!-- 右側：字幕 / 小測驗 -->
-  <div id="right">
-    <div class="tabs">
-      <button class="tab-button active" onclick="showTab('subtitles')">字幕對照</button>
-      <button class="tab-button" onclick="showTab('quiz')">小測驗</button>
-    </div>
-
-    <!-- 字幕 -->
-    <div id="subtitles" class="tab-content active subtitle">
-      <p><b>00:00</b> The Mid-Autumn Festival falls on the fifteenth day of the eighth month in the Chinese lunar calendar.<br>中秋節在農曆八月十五這一天。</p>
-      <p><b>00:04</b> It is a time to admire the big, round moon.<br>這是抬頭賞圓月的時刻。</p>
-      <p><b>00:09</b> This has been a special day in China for a very long time.<br>在中國，這是一個流傳已久的特別節日。</p>
-    </div>
-
-    <!-- 小測驗 -->
-    <div id="quiz" class="tab-content quiz">
-      <h3>互動小測驗</h3>
-
-      <p>1) 中秋節在農曆幾月幾日？</p>
-      <label><input type="radio" name="q1" value="A"> 八月十五</label>
-      <label><input type="radio" name="q1" value="B"> 九月初一</label>
-
-      <p style="margin-top:.8rem">2) 傳說中射下九個太陽的是？</p>
-      <label><input type="radio" name="q2" value="A"> 嫦娥</label>
-      <label><input type="radio" name="q2" value="B"> 后羿</label>
-
-      <p style="margin-top:.8rem">3) 中秋節常見的食物是？（可複選）</p>
-      <label><input type="checkbox" name="q3" value="A"> 月餅</label>
-      <label><input type="checkbox" name="q3" value="B"> 水餃</label>
-
-      <div style="margin-top:10px">
-        <button class="btn" onclick="checkQuiz()">提交答案</button>
-        <span id="quizResult" class="result"></span>
-      </div>
+  <div class="sidebar">
+    <h3>字幕對照 / 小測驗</h3>
+    <div id="subtitleList"></div>
+    <div class="quiz-box">
+      <p id="quizQuestion">Press "出題" 開始測驗</p>
+      <input type="text" id="quizAnswer" placeholder="輸入答案">
+      <button onclick="checkAnswer()">送出</button>
+      <button onclick="newQuiz()">出題</button>
+      <p id="quizResult"></p>
     </div>
   </div>
 
-  <script>
-    // ——— 播放器基本控制（Demo：時間位移/重複本句）———
-    const video = document.getElementById('video');
-    document.getElementById('play').onclick = () => video.paused ? video.play() : video.pause();
-    document.getElementById('prev').onclick = () => video.currentTime = Math.max(0, video.currentTime - 5);
-    document.getElementById('next').onclick = () => video.currentTime = Math.min(video.duration, video.currentTime + 5);
-    document.getElementById('repeat').onclick = () => { video.currentTime = Math.max(0, video.currentTime - 3); video.play(); };
+<script>
+const subtitles = [
+  { start: 0, end: 4, en: "The Mid-Autumn Festival falls on the fifteenth day of the eighth month in the Chinese lunar calendar.", zh:"中秋節在農曆八月十五這一天。" },
+  { start: 4, end: 9, en: "It is a time to admire the big, round moon.", zh:"這是抬頭賞圓月的時刻。" },
+  { start: 9, end: 14, en: "This has been a special day in China for a very long time.", zh:"在中國，這是一個流傳已久的特別節日。" }
+];
 
-    // ——— 填滿 / 適應 + 變焦 ———
-    (function(){
-      const vw = document.getElementById('vw');
-      const fillBtn = document.getElementById('fillToggle');
-      const zoomBox = document.getElementById('zoomBox');
-      const zoom = document.getElementById('zoom');
+const video = document.getElementById("video");
+const subtitleList = document.getElementById("subtitleList");
 
-      fillBtn.addEventListener('click', ()=>{
-        vw.classList.toggle('fill');
-        const on = vw.classList.contains('fill');
-        fillBtn.textContent = on ? '↩️ 適應畫面' : '🖼️ 填滿畫面';
-        zoomBox.classList.toggle('hidden', !on);
-        vw.classList.toggle('zoom', on);
-        if(!on){ vw.style.removeProperty('--zoom'); zoom.value = 1; }
-      });
-      zoom.addEventListener('input', ()=> vw.style.setProperty('--zoom', zoom.value));
-    })();
+subtitles.forEach((s,i)=>{
+  let div=document.createElement("div");
+  div.className="subtitle";
+  div.id="sub"+i;
+  div.innerHTML=`<b>${formatTime(s.start)}</b> ${s.en}<br><span style="color:#ccc">${s.zh}</span>`;
+  subtitleList.appendChild(div);
+});
 
-    // ——— Tabs 控制 ———
-    function showTab(id){
-      document.querySelectorAll('.tab-content').forEach(el=>el.classList.remove('active'));
-      document.querySelectorAll('.tab-button').forEach(el=>el.classList.remove('active'));
-      document.getElementById(id).classList.add('active');
-      document.querySelector(`.tab-button[onclick="showTab('${id}')"]`).classList.add('active');
+video.addEventListener("timeupdate",()=>{
+  let t=video.currentTime;
+  subtitles.forEach((s,i)=>{
+    let line=document.getElementById("sub"+i);
+    if(t>=s.start && t<s.end){
+      line.classList.add("active");
+      line.scrollIntoView({behavior:"smooth", block:"center"});
+    }else{
+      line.classList.remove("active");
     }
+  });
+});
 
-    // ——— 小測驗評分 ———
-    function checkQuiz(){
-      let score = 0, total = 3;
-      const q1 = document.querySelector('input[name="q1"]:checked')?.value;
-      const q2 = document.querySelector('input[name="q2"]:checked')?.value;
-      const q3 = Array.from(document.querySelectorAll('input[name="q3"]:checked')).map(x=>x.value);
+// --- 控制 ---
+function prevLine(){ seekTo(-1); }
+function nextLine(){ seekTo(1); }
+function seekTo(offset){
+  let t=video.currentTime;
+  let idx=subtitles.findIndex(s=>t>=s.start && t<s.end);
+  if(idx>=0){
+    let newIdx=Math.min(subtitles.length-1, Math.max(0, idx+offset));
+    video.currentTime=subtitles[newIdx].start;
+  }
+}
+function repeatLine(){
+  let t=video.currentTime;
+  let idx=subtitles.findIndex(s=>t>=s.start && t<s.end);
+  if(idx>=0) video.currentTime=subtitles[idx].start;
+}
+function togglePlay(){ video.paused?video.play():video.pause(); }
+function fitScreen(){ video.style.objectFit="contain"; }
 
-      if(q1 === 'A') score++;               // 八月十五
-      if(q2 === 'B') score++;               // 后羿
-      if(q3.includes('A') && !q3.includes('B')) score++; // 只選月餅
+// --- 小測驗 (填空) ---
+let currentQuiz=null;
 
-      const msg = `你答對了 ${score}/${total} 題！`;
-      document.getElementById('quizResult').textContent = msg;
-    }
-  </script>
+function newQuiz(){
+  let s=subtitles[Math.floor(Math.random()*subtitles.length)];
+  let words=s.en.split(" ");
+  let blankIdx=Math.floor(Math.random()*words.length);
+  currentQuiz={answer:words[blankIdx].replace(/[^a-zA-Z]/g,"")};
+  words[blankIdx]="_____";
+  document.getElementById("quizQuestion").innerText=words.join(" ");
+  document.getElementById("quizResult").innerText="";
+  document.getElementById("quizAnswer").value="";
+}
+
+function checkAnswer(){
+  let ans=document.getElementById("quizAnswer").value.trim();
+  if(!currentQuiz) return;
+  if(ans.toLowerCase()===currentQuiz.answer.toLowerCase()){
+    document.getElementById("quizResult").innerText="✅ 正確!";
+  }else{
+    document.getElementById("quizResult").innerText="❌ 錯誤, 正確答案: "+currentQuiz.answer;
+  }
+}
+
+function formatTime(sec){
+  let m=Math.floor(sec/60);
+  let s=Math.floor(sec%60).toString().padStart(2,"0");
+  return `${m}:${s}`;
+}
+</script>
 </body>
 </html>
+
 
 
 
