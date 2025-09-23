@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <title>互動英語學習影片</title>
+  <title>故事影片互動版</title>
   <style>
     body {
       margin: 0;
@@ -13,129 +13,155 @@
       height: 100vh;
     }
     #left {
-      flex: 2;
+      flex: 1.3;
+      padding: 10px;
       display: flex;
       flex-direction: column;
-      padding: 10px;
     }
     #right {
-      flex: 1;
+      flex: 0.9;
       padding: 10px;
-      overflow-y: auto;
       background: #1e293b;
+      overflow-y: auto;
     }
-    video {
+
+    /* 影片容器 */
+    .vw {
+      position: relative;
       width: 100%;
+      background: #000;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .vw video {
+      display: block;
+      width: 100%;
+      height: auto;
       max-height: 65vh;
-      background: black;
+      object-fit: contain;   /* 預設：等比例顯示（有黑邊） */
     }
+    .vw.fill {
+      height: 65vh;
+    }
+    .vw.fill video {
+      width: 100%;
+      height: 100%;
+      max-height: none;
+      object-fit: cover;     /* 填滿（會裁切） */
+    }
+    .vw.zoom video {
+      transform: scale(var(--zoom, 1));
+      transform-origin: center center;
+    }
+    .hidden { display: none !important; }
+
+    /* 控制列 */
     .controls {
-      margin-top: 8px;
+      margin-top: 10px;
     }
-    button {
-      margin: 2px;
-      padding: 6px 10px;
-      border: none;
-      border-radius: 4px;
+    .btn {
       background: #334155;
-      color: white;
+      border: none;
+      border-radius: 6px;
+      color: #fff;
+      padding: 6px 10px;
       cursor: pointer;
+      margin-right: 5px;
     }
-    button:hover {
+    .btn:hover {
       background: #475569;
     }
-    #youtube-link {
-      margin-top: 12px;
+
+    /* YouTube 區塊 */
+    .yt-link {
+      margin-top: 10px;
+      background: #111827;
+      padding: 10px;
+      border-radius: 6px;
     }
-    #youtube-link a {
+    .yt-link a {
       display: inline-flex;
       align-items: center;
-      background: #FF0000;
+      background: #ff0000;
       color: #fff;
-      padding: 6px 12px;
-      border-radius: 6px;
       text-decoration: none;
+      padding: 6px 10px;
+      border-radius: 6px;
       font-weight: bold;
     }
-    #youtube-link svg {
-      margin-right: 6px;
+    .yt-link a:hover {
+      background: #cc0000;
     }
   </style>
 </head>
 <body>
+  <!-- 左邊：影片區 -->
   <div id="left">
-    <h2>故事影片</h2>
-    <input type="file" id="fileInput" accept="video/*">
-    <video id="video" controls>
-      <source src="story.mov" type="video/mp4">
-      您的瀏覽器不支援影片播放。
-    </video>
-
-    <!-- YouTube 外部觀看 -->
-    <div id="youtube-link">
-      <span style="font-weight:bold;">到以下平台觀看：</span>
-      <a href="https://www.youtube.com/watch?v=xxxxxxx" target="_blank">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" 
-             viewBox="0 0 24 24" fill="white">
-          <path d="M23.498 6.186a2.971 2.971 0 00-2.09-2.103C19.397 3.5 12 3.5 12 3.5s-7.397 0-9.408.583a2.971 2.971 0 00-2.09 2.103A30.18 30.18 0 000 12a30.18 30.18 0 00.502 5.814 2.971 2.971 0 002.09 2.103C4.603 20.5 12 20.5 12 20.5s7.397 0 9.408-.583a2.971 2.971 0 002.09-2.103A30.18 30.18 0 0024 12a30.18 30.18 0 00-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
-        </svg>
-        YouTube
-      </a>
+    <div id="vw" class="vw">
+      <video id="video" controls>
+        <source src="story.mov" type="video/mp4">
+        您的瀏覽器不支援影片播放。
+      </video>
     </div>
 
+    <!-- 控制列 -->
     <div class="controls">
-      <button onclick="prev()">上一句</button>
-      <button onclick="playPause()">播放 / 暫停</button>
-      <button onclick="next()">下一句</button>
-      <button onclick="repeat()">重複本句</button>
+      <button id="prev" class="btn">⏮️ 上一句</button>
+      <button id="play" class="btn">▶️ 播放 / 暫停</button>
+      <button id="next" class="btn">⏭️ 下一句</button>
+      <button id="repeat" class="btn">🔁 重複本句</button>
+      <button id="fillToggle" class="btn">🖼️ 填滿畫面</button>
+      <label id="zoomBox" class="hidden" style="margin-left:8px;">
+        變焦 <input type="range" id="zoom" min="1" max="1.8" step="0.05" value="1">
+      </label>
+    </div>
+
+    <!-- YouTube 連結 -->
+    <div class="yt-link">
+      到以下平台觀看：
+      <a href="https://www.youtube.com/watch?v=你的影片ID" target="_blank">▶ YouTube</a>
     </div>
   </div>
 
+  <!-- 右邊：字幕與小測驗 -->
   <div id="right">
     <h3>字幕對照 / 小測驗</h3>
-    <div id="subtitles">
-      <!-- 動態載入字幕 -->
+    <div id="subs">
+      <p>00:00 The Mid-Autumn Festival falls on the fifteenth day of the eighth month in the Chinese lunar calendar.<br>
+      中秋節在農曆八月十五這一天。</p>
+      <p>00:04 It is a time to admire the big, round moon.<br>
+      這是抬頭賞圓月的時刻。</p>
+      <p>00:09 This has been a special day in China for a very long time.<br>
+      在中國，這是一個流傳已久的特別節日。</p>
+      <!-- ... 這裡可以繼續放完整字幕稿 -->
     </div>
   </div>
 
   <script>
-    const video = document.getElementById('video');
-    const fileInput = document.getElementById('fileInput');
+    // 🔹 放大模式 / 適應模式 + 變焦
+    (function(){
+      const vw = document.getElementById('vw');
+      const fillBtn = document.getElementById('fillToggle');
+      const zoomBox = document.getElementById('zoomBox');
+      const zoom = document.getElementById('zoom');
 
-    fileInput.addEventListener('change', function() {
-      const file = fileInput.files[0];
-      if (file) {
-        const url = URL.createObjectURL(file);
-        video.src = url;
-      }
-    });
+      fillBtn.addEventListener('click', ()=>{
+        vw.classList.toggle('fill');
+        const on = vw.classList.contains('fill');
+        fillBtn.textContent = on ? '↩️ 適應畫面' : '🖼️ 填滿畫面';
+        zoomBox.classList.toggle('hidden', !on);
+        vw.classList.toggle('zoom', on);
+        if(!on){
+          vw.style.removeProperty('--zoom');
+          zoom.value = 1;
+        }
+      });
 
-    function playPause() {
-      if (video.paused) {
-        video.play();
-      } else {
-        video.pause();
-      }
-    }
-
-    function prev() {
-      video.currentTime = Math.max(0, video.currentTime - 5);
-    }
-
-    function next() {
-      video.currentTime = Math.min(video.duration, video.currentTime + 5);
-    }
-
-    function repeat() {
-      const currentTime = video.currentTime;
-      video.currentTime = currentTime - 3;
-      video.play();
-    }
+      zoom.addEventListener('input', ()=>{
+        vw.style.setProperty('--zoom', zoom.value);
+      });
+    })();
   </script>
-</body>
-</html>
-
-</script>
 </body>
 </html>
 
