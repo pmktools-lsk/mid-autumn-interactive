@@ -1,131 +1,301 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8">
-  <title>Mid-Autumn Interactive</title>
-  <style>
-    body { display: flex; background:#0f1b2e; color:white; margin:0; font-family:Arial; }
-    .video-container { flex: 2; padding:10px; }
-    .controls { margin-top:10px; }
-    video { width:100%; max-height:70vh; object-fit:contain; background:black; }
-    .sidebar { flex: 1; padding:10px; overflow-y:auto; height:100vh; }
-    .subtitle { padding:5px; border-bottom:1px solid #333; }
-    .active { background:#223d66; }
-    .quiz-box { margin-top:20px; padding:10px; border:1px solid #666; background:#1b2a3d; }
-    .quiz-box input { padding:5px; }
-    .quiz-box button { padding:5px; margin-left:5px; }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>看故事學英語｜互動版</title>
+<style>
+  :root{
+    --bg:#0b1627; --panel:#0f2238; --panel2:#132b47; --text:#eaf2ff;
+    --muted:#a7bbd9; --accent:#3b82f6; --accent2:#16a34a; --danger:#ef4444;
+    --btn:#344255; --btnH:#44566e;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family: system-ui, -apple-system, "Noto Sans TC", Segoe UI, Roboto, Arial, sans-serif;
+    display:flex; gap:0
+  }
+  /* 左右兩欄（圖二結構）*/
+  .left { flex: 1.25; padding:12px; display:flex; flex-direction:column; }
+  .right{ flex: 0.95;  padding:12px; display:flex; flex-direction:column; background:var(--panel); }
+
+  /* 影片容器 */
+  .vw{
+    border-radius:12px; overflow:hidden; background:#000; position:relative;
+    box-shadow: 0 10px 30px rgba(0,0,0,.35);
+  }
+  .vw video{ width:100%; height:auto; max-height:62vh; object-fit:contain; display:block; }
+  .vw.fill{ height:62vh; }
+  .vw.fill video{ width:100%; height:100%; max-height:none; object-fit:cover; }
+  .vw.zoom video{ transform: scale(var(--zoom,1)); transform-origin:center; }
+
+  /* 控制列 */
+  .controls{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding-top:10px; }
+  .btn{
+    background:var(--btn); border:none; color:#fff; padding:8px 12px; border-radius:8px;
+    cursor:pointer; transition:.15s; display:inline-flex; align-items:center; gap:6px;
+  }
+  .btn:hover{ background:var(--btnH); }
+  .btn[aria-pressed="true"]{ outline:2px solid var(--accent2); }
+  .speed{ display:inline-flex; align-items:center; gap:8px; margin-left:4px;}
+  .speed input[type="range"]{ width:180px }
+  .hidden{ display:none !important; }
+
+  /* 右側：標題+tabs */
+  .title{ font-size:20px; font-weight:700; margin-bottom:12px; }
+  .tabs{ display:flex; gap:8px; margin-bottom:10px; }
+  .tab{ flex:0 0 auto; padding:8px 12px; border-radius:8px; cursor:pointer; background:var(--panel2); color:#fff; border:none;}
+  .tab.active{ background:var(--accent); }
+  .pane{ display:none; background:var(--panel2); border-radius:10px; padding:10px; overflow:auto; }
+  .pane.active{ display:block; }
+
+  /* 字幕列表（跟隨滾動：圖二風格）*/
+  .subs{ height:calc(100vh - 160px); overflow:auto; }
+  .row{
+    display:grid; grid-template-columns: 48px 80px 1fr; gap:10px; align-items:center;
+    padding:10px; border-bottom:1px solid rgba(255,255,255,.06);
+  }
+  .row .idx{ text-align:center; color:var(--muted); }
+  .row .ts{ background:#0c355f; color:#d7e7ff; padding:4px 8px; border-radius:6px; width:max-content; }
+  .row .en{ font-size:16px; line-height:1.45; }
+  .row .zh{ color:var(--muted); margin-top:3px; font-size:14px; }
+  .row.active{ background:rgba(59,130,246,.18); }
+  .row:hover{ background:rgba(255,255,255,.06); cursor:pointer; }
+
+  /* 小測驗（仍保留圖二原有樣式）*/
+  .quiz-wrap{ height:calc(100vh - 160px); overflow:auto; }
+  .quiz-item{ background:#0c2644; padding:12px; border-radius:8px; margin-bottom:10px; }
+  .quiz-item input[type="text"]{ width:260px; padding:8px; border-radius:6px; border:1px solid #3d5777; background:#0b1f37; color:#fff; }
+  .quiz-item .ok{ color:#22c55e; font-weight:700; margin-left:8px;}
+  .quiz-item .ng{ color:#ef4444; font-weight:700; margin-left:8px;}
+
+  /* YouTube 按鈕區塊 */
+  .ytRow{
+    margin:12px 0 0; text-align:center;
+  }
+  .ytBtn{
+    background:#ff0000; color:#fff; font-weight:700; border:none; border-radius:8px;
+    display:inline-flex; align-items:center; gap:6px; padding:8px 12px; text-decoration:none;
+  }
+  .ytBtn:hover{ filter:brightness(.9); }
+</style>
 </head>
 <body>
-  <div class="video-container">
-    <h3>故事影片</h3>
-    <video id="video" controls>
-      <source src="story.mov" type="video/mp4">
-      Your browser does not support video.
-    </video>
-    <div class="controls">
-      <button onclick="prevLine()">⏮ 上一句</button>
-      <button onclick="togglePlay()">▶️ 播放 / 暫停</button>
-      <button onclick="nextLine()">⏭ 下一句</button>
-      <button onclick="repeatLine()">🔁 重複本句</button>
-      <button onclick="fitScreen()">🖼️ 適應畫面</button>
-    </div>
-  </div>
 
-  <div class="sidebar">
-    <h3>字幕對照 / 小測驗</h3>
-    <div id="subtitleList"></div>
-    <div class="quiz-box">
-      <p id="quizQuestion">Press "出題" 開始測驗</p>
-      <input type="text" id="quizAnswer" placeholder="輸入答案">
-      <button onclick="checkAnswer()">送出</button>
-      <button onclick="newQuiz()">出題</button>
-      <p id="quizResult"></p>
+  <!-- 左側：影片 + 控制列（圖二） -->
+  <section class="left">
+    <div class="vw" id="vw">
+      <video id="video" preload="metadata" controls>
+        <source src="story.mov" type="video/mp4" />
+        您的瀏覽器不支援影片播放。
+      </video>
     </div>
-  </div>
+
+    <div class="controls">
+      <button class="btn" id="prev">⏮ 上一句</button>
+      <button class="btn" id="toggle">▶︎/⏸ 播放</button>
+      <button class="btn" id="next">⏭ 下一句</button>
+      <button class="btn" id="replay">🔁 重複本句</button>
+
+      <button class="btn" id="autoPause" aria-pressed="false">🧩 逐句自動暫停</button>
+      <button class="btn" id="wholeLoop" aria-pressed="false">🔂 整段循環</button>
+      <button class="btn" id="abOnClick" aria-pressed="true">🅰️🅱️ 點句即循環</button>
+      <button class="btn" id="clearLoop">⏹ 取消循環</button>
+
+      <button class="btn" id="fillToggle">🖼️ 填滿畫面</button>
+      <label class="speed hidden" id="zoomBox">變焦
+        <input type="range" id="zoom" min="1" max="1.8" step="0.05" value="1">
+      </label>
+
+      <label class="speed">速度
+        <input type="range" min="0.5" max="1.25" step="0.05" value="1" id="rate">
+        <span id="rateVal">1.00×</span>
+      </label>
+    </div>
+
+    <!-- ✅ YouTube 連結（新增，保持圖二版型不變） -->
+    <div class="ytRow">
+      <span style="margin-right:8px;color:#d1e3ff">到以下平台觀看：</span>
+      <a class="ytBtn" href="https://youtube.com/shorts/rz78e3Zhf1s" target="_blank" rel="noopener">
+        ▶ YouTube
+      </a>
+    </div>
+  </section>
+
+  <!-- 右側：字幕列表 / 小測驗 / 緊湊模式（圖二） -->
+  <section class="right">
+    <div class="title">字幕對照 / 小測驗</div>
+    <div class="tabs">
+      <button class="tab active" data-pane="pane-subs">字幕列表</button>
+      <button class="tab" data-pane="pane-quiz">小測驗</button>
+      <button class="tab" data-pane="pane-compact">緊湊模式</button>
+    </div>
+
+    <!-- 字幕列表 -->
+    <div class="pane active" id="pane-subs">
+      <div class="subs" id="subs"></div>
+    </div>
+
+    <!-- 小測驗（英文填空） -->
+    <div class="pane" id="pane-quiz">
+      <div class="quiz-wrap" id="quizWrap"></div>
+    </div>
+
+    <!-- 緊湊模式（示例：只顯示英文） -->
+    <div class="pane" id="pane-compact">
+      <div class="subs" id="subsCompact"></div>
+    </div>
+  </section>
 
 <script>
-const subtitles = [
-  { start: 0, end: 4, en: "The Mid-Autumn Festival falls on the fifteenth day of the eighth month in the Chinese lunar calendar.", zh:"中秋節在農曆八月十五這一天。" },
-  { start: 4, end: 9, en: "It is a time to admire the big, round moon.", zh:"這是抬頭賞圓月的時刻。" },
-  { start: 9, end: 14, en: "This has been a special day in China for a very long time.", zh:"在中國，這是一個流傳已久的特別節日。" }
+/* ====== Demo 字幕資料（圖二同一批）====== */
+const cues = [
+  {t0:  0.00, t1:  4.00, en:"The Mid-Autumn Festival falls on the fifteenth day of the eighth month in the Chinese lunar calendar.", zh:"中秋節在農曆八月十五這一天。"},
+  {t0:  4.00, t1:  9.00, en:"It is a time to admire the big, round moon.", zh:"這是抬頭賞圓月的時刻。"},
+  {t0:  9.00, t1: 14.00, en:"This has been a special day in China for a very long time.", zh:"在中國，這是一個流傳已久的特別節日。"},
+  {t0: 14.00, t1: 19.00, en:"Long ago, there were ten suns in the sky.", zh:"很久以前，天空中曾經同時出現十個太陽。"},
+  {t0: 19.00, t1: 24.00, en:"It was unbearably hot, and people suffered.", zh:"天氣炎熱難耐，人們備受煎熬。"},
+  {t0: 24.00, t1: 28.00, en:"A brave archer named Hou Yi helped them.", zh:"一位勇敢的神射手后羿出手相救。"},
+  {t0: 28.00, t1: 34.00, en:"He climbed a tall mountain and shot down nine suns with his strong bow.", zh:"他登上高山，拉開強弓，射下了九個太陽。"}
 ];
 
-const video = document.getElementById("video");
-const subtitleList = document.getElementById("subtitleList");
+const $ = sel => document.querySelector(sel);
+const $$ = sel => Array.from(document.querySelectorAll(sel));
 
-subtitles.forEach((s,i)=>{
-  let div=document.createElement("div");
-  div.className="subtitle";
-  div.id="sub"+i;
-  div.innerHTML=`<b>${formatTime(s.start)}</b> ${s.en}<br><span style="color:#ccc">${s.zh}</span>`;
-  subtitleList.appendChild(div);
-});
+const video = $('#video');
+const subsEl = $('#subs');
+const subsCompactEl = $('#subsCompact');
+const quizWrap = $('#quizWrap');
 
-video.addEventListener("timeupdate",()=>{
-  let t=video.currentTime;
-  subtitles.forEach((s,i)=>{
-    let line=document.getElementById("sub"+i);
-    if(t>=s.start && t<s.end){
-      line.classList.add("active");
-      line.scrollIntoView({behavior:"smooth", block:"center"});
-    }else{
-      line.classList.remove("active");
-    }
+/* ====== 建立字幕列表（圖二樣式） ====== */
+function timefmt(s){ const m=Math.floor(s/60), ss=String(Math.floor(s%60)).padStart(2,'0'); return `${m}:${ss}`;}
+function renderSubs(){
+  subsEl.innerHTML = cues.map((c,i)=>`
+    <div class="row" data-i="${i}">
+      <div class="idx">${i+1}</div>
+      <div class="ts">${timefmt(c.t0)}</div>
+      <div>
+        <div class="en">${c.en}</div>
+        <div class="zh">${c.zh}</div>
+      </div>
+    </div>`).join('');
+  subsCompactEl.innerHTML = cues.map((c,i)=>`
+    <div class="row" data-i="${i}">
+      <div class="idx">${i+1}</div>
+      <div class="ts">${timefmt(c.t0)}</div>
+      <div><div class="en">${c.en}</div></div>
+    </div>`).join('');
+
+  // 點句跳播
+  subsEl.querySelectorAll('.row, .row *').forEach(el=>{
+    el.addEventListener('click',e=>{
+      const row = e.currentTarget.closest('.row'); if(!row) return;
+      const i = +row.dataset.i; video.currentTime = cues[i].t0; video.play();
+    }, true);
+  });
+  subsCompactEl.querySelectorAll('.row').forEach(row=>{
+    row.addEventListener('click', ()=>{ const i=+row.dataset.i; video.currentTime=cues[i].t0; video.play(); });
+  });
+}
+
+/* ====== 影片播放時高亮 + 滾動 ====== */
+video.addEventListener('timeupdate', ()=>{
+  const t = video.currentTime;
+  let idx = cues.findIndex(c=> t>=c.t0 && t<c.t1 );
+  if(idx<0) idx=cues.length-1; // 結尾
+
+  $$('#subs .row').forEach((r,i)=>{
+    r.classList.toggle('active', i===idx);
+    if(i===idx) r.scrollIntoView({block:'center'});
+  });
+  $$('#subsCompact .row').forEach((r,i)=>{
+    r.classList.toggle('active', i===idx);
+    if(i===idx) r.scrollIntoView({block:'center'});
   });
 });
 
-// --- 控制 ---
-function prevLine(){ seekTo(-1); }
-function nextLine(){ seekTo(1); }
-function seekTo(offset){
-  let t=video.currentTime;
-  let idx=subtitles.findIndex(s=>t>=s.start && t<s.end);
-  if(idx>=0){
-    let newIdx=Math.min(subtitles.length-1, Math.max(0, idx+offset));
-    video.currentTime=subtitles[newIdx].start;
-  }
+/* ====== 小測驗：英文填空（從字幕抽字） ====== */
+function pickBlank(text){
+  // 取較長的單字來挖空
+  const words = text.split(/\b/).filter(w=>/^[A-Za-z]+$/.test(w));
+  const cand = words.filter(w=>w.length>=4);
+  const target = (cand.length? cand : words)[ Math.floor(Math.random()* (cand.length? cand.length:words.length)) ];
+  const answer = target;
+  const masked = text.replace(new RegExp('\\b'+answer+'\\b'), '_____');
+  return {masked, answer};
 }
-function repeatLine(){
-  let t=video.currentTime;
-  let idx=subtitles.findIndex(s=>t>=s.start && t<s.end);
-  if(idx>=0) video.currentTime=subtitles[idx].start;
-}
-function togglePlay(){ video.paused?video.play():video.pause(); }
-function fitScreen(){ video.style.objectFit="contain"; }
+function renderQuiz(){
+  quizWrap.innerHTML = cues.map((c,i)=>{
+    const {masked, answer} = pickBlank(c.en);
+    return `
+      <div class="quiz-item" data-ans="${answer.toLowerCase()}">
+        <div style="margin-bottom:6px;"><b>第 ${i+1} 題</b></div>
+        <div style="margin-bottom:6px">${masked}</div>
+        <input type="text" placeholder="輸入缺的單字">
+        <button class="btn btn-sm">送出</button>
+        <span class="result"></span>
+      </div>`;
+  }).join('');
 
-// --- 小測驗 (填空) ---
-let currentQuiz=null;
-
-function newQuiz(){
-  let s=subtitles[Math.floor(Math.random()*subtitles.length)];
-  let words=s.en.split(" ");
-  let blankIdx=Math.floor(Math.random()*words.length);
-  currentQuiz={answer:words[blankIdx].replace(/[^a-zA-Z]/g,"")};
-  words[blankIdx]="_____";
-  document.getElementById("quizQuestion").innerText=words.join(" ");
-  document.getElementById("quizResult").innerText="";
-  document.getElementById("quizAnswer").value="";
-}
-
-function checkAnswer(){
-  let ans=document.getElementById("quizAnswer").value.trim();
-  if(!currentQuiz) return;
-  if(ans.toLowerCase()===currentQuiz.answer.toLowerCase()){
-    document.getElementById("quizResult").innerText="✅ 正確!";
-  }else{
-    document.getElementById("quizResult").innerText="❌ 錯誤, 正確答案: "+currentQuiz.answer;
-  }
+  quizWrap.querySelectorAll('.quiz-item .btn').forEach(btn=>{
+    btn.addEventListener('click', e=>{
+      const box = e.currentTarget.closest('.quiz-item');
+      const ans = box.dataset.ans;
+      const val = box.querySelector('input').value.trim().toLowerCase();
+      const res = box.querySelector('.result');
+      if(val===ans){ res.textContent='✅ 正確'; res.className='result ok'; }
+      else{ res.textContent='❌ 正確：'+ans; res.className='result ng'; }
+    });
+  });
 }
 
-function formatTime(sec){
-  let m=Math.floor(sec/60);
-  let s=Math.floor(sec%60).toString().padStart(2,"0");
-  return `${m}:${s}`;
+/* ====== 上一句/下一句/重複本句/速度 ====== */
+$('#prev').onclick = ()=>{ jump(-1); };
+$('#next').onclick = ()=>{ jump(1); };
+$('#replay').onclick= ()=>{ const t=video.currentTime; const i=cues.findIndex(c=>t>=c.t0&&t<c.t1); if(i>=0) video.currentTime=cues[i].t0; video.play(); };
+$('#toggle').onclick= ()=> video.paused?video.play():video.pause();
+
+function jump(dir){
+  const t=video.currentTime;
+  let i=cues.findIndex(c=>t>=c.t0&&t<c.t1);
+  if(i<0) i=0;
+  i=Math.min(cues.length-1, Math.max(0, i+dir));
+  video.currentTime=cues[i].t0; video.play();
 }
+const rate = $('#rate'), rateVal = $('#rateVal');
+rate.oninput = ()=>{ video.playbackRate = +rate.value; rateVal.textContent = (+rate.value).toFixed(2)+'×'; };
+
+/* ====== 填滿/變焦（保持圖二風格） ====== */
+const vw = $('#vw'), fillBtn=$('#fillToggle'), zoomBox=$('#zoomBox'), zoom=$('#zoom');
+fillBtn.onclick = ()=>{
+  vw.classList.toggle('fill');
+  const on = vw.classList.contains('fill');
+  fillBtn.textContent = on ? '↩︎ 適應畫面' : '🖼️ 填滿畫面';
+  zoomBox.classList.toggle('hidden', !on);
+  vw.classList.toggle('zoom', on);
+  if(!on){ vw.style.removeProperty('--zoom'); zoom.value=1; }
+};
+zoom.oninput = ()=> vw.style.setProperty('--zoom', zoom.value);
+
+/* ====== Tabs ====== */
+$$('.tab').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    $$('.tab').forEach(b=>b.classList.remove('active'));
+    $$('.pane').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    $('#'+btn.dataset.pane).classList.add('active');
+  });
+});
+
+/* ====== 初始化 ====== */
+renderSubs();
+renderQuiz();
 </script>
 </body>
 </html>
+
 
 
 
